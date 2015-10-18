@@ -1,0 +1,13 @@
+{application, marinco_spl,
+ [
+  {description, "Marinco search light controller"},
+  {vsn, "1.0"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+		  uart
+                 ]},
+  {mod, { marinco_spl_app, []}},
+  {env, []}
+ ]}.
