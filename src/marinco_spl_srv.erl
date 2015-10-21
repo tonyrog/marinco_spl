@@ -1,3 +1,4 @@
+%%% coding: latin-1
 %%%---- BEGIN COPYRIGHT -------------------------------------------------------
 %%%
 %%% Copyright (C) 2007 - 2015, Rogvall Invest AB, <tony@rogvall.se>
@@ -16,6 +17,7 @@
 %%%---- END COPYRIGHT ---------------------------------------------------------
 %%%-------------------------------------------------------------------
 %%% @author Tony Rogvall <tony@rogvall.se>
+%%% @author Marina Westman Lönne <malotte@malotte.net>
 %%% @copyright (C) 2015, Tony Rogvall
 %%% @doc
 %%%    Marinco search light controller
@@ -26,9 +28,8 @@
 
 -behaviour(gen_server).
 
--include_lib("lager/include/log.hrl").
 %% API
--export([start_link/0]).
+-export([start_link/0,start_link/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -99,6 +100,7 @@ start_link(Args) ->
 %% @end
 %%--------------------------------------------------------------------
 init(Opts0) ->
+    lager:debug("opts ~p",[Opts0]),
     Opts = Opts0 ++ application:get_all_env(marinco_spl),
     RetryInterval = proplists:get_value(retry_interval,Opts,
 					?DEFAULT_RETRY_INTERVAL),
@@ -115,15 +117,15 @@ init(Opts0) ->
 		   end;
 	       Baud1 -> Baud1
 	   end,
+    S = #s{ device = Device,
+	    baud_rate = Baud,
+	    retry_interval = RetryInterval
+	  },
     if Device =:= false; Device =:= "" ->
-	    ?error("marinco_spl: missing device argument"),
+	    lager:error("marinco_spl: missing device argument"),
 	    {stop, einval};
        true ->
-	    S = #s{ device = Device,
-		    baud_rate = Baud,
-		    retry_interval = RetryInterval
-		  },
-	    ?info("marinco_spl: using device ~s@~w\n", 
+	    lager:info("marinco_spl: using device ~s@~w\n", 
 		  [Device, Baud]),
 	    case open(S) of
 		{ok, S1} -> {ok, S1};
@@ -210,7 +212,7 @@ handle_info({timeout,TRef,reopen},S) when TRef =:= S#s.retry_timer ->
     end;
 
 handle_info(_Info, S) ->
-    ?debug("marinco_spl: got info ~p", [_Info]),
+    lager:debug("marinco_spl: got info ~p", [_Info]),
     {noreply, S}.
 
 %%--------------------------------------------------------------------
@@ -242,6 +244,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+send_code(Key, #s { device = simulated }) ->
+    lager:info("sending ~w.",[Key]);
 send_code(Key, #s { uart = U }) when U =/= undefined ->
     case Key of
 	right -> uart:send(U, ?RIGHT);
@@ -256,18 +260,21 @@ send_code(Key, #s { uart = U }) when U =/= undefined ->
     end.
 
 handle_input(Buffer, S) ->
-    ?info("handle_input: got ~p", [Buffer]),
+    lager:info("handle_input: got ~p", [Buffer]),
     S#s { buf = <<>> }.
 
+open(S0=#s {device = simulated }) ->
+    lager:debug("marinco_spl: simulated"),
+    {ok, S0};
 open(S0=#s {device = DeviceName, baud_rate = Baud }) ->
     UartOpts = [{mode,binary}, {baud, Baud}, {packet, 0},
 		{csize, 8}, {stopb,1}, {parity,none}, {active, once}],
     case uart:open(DeviceName, UartOpts) of
 	{ok,Uart} ->
-	    ?debug("marinco_spl:open: ~s@~w", [DeviceName,Baud]),
+	    lager:debug("marinco_spl:open: ~s@~w", [DeviceName,Baud]),
 	    {ok, S0#s { uart = Uart }};
 	{error,E} when E =:= eaccess; E =:= enoent ->
-	    ?debug("marinco_spl:open: ~s@~w  error ~w, will try again "
+	    lager:debug("marinco_spl:open: ~s@~w  error ~w, will try again "
 		   "in ~p msecs.", [DeviceName,Baud,E,S0#s.retry_interval]),
 	    {ok, reopen(S0)};
 	Error ->
@@ -277,9 +284,9 @@ open(S0=#s {device = DeviceName, baud_rate = Baud }) ->
 
 reopen(S) ->
     if S#s.uart =/= undefined ->
-	    ?debug("marinco_spl: closing device ~s", [S#s.device]),
+	    lager:debug("marinco_spl: closing device ~s", [S#s.device]),
 	    R = uart:close(S#s.uart),
-	    ?debug("marinco_spl: closed ~p", [R]),
+	    lager:debug("marinco_spl: closed ~p", [R]),
 	    R;
        true ->
 	    ok
