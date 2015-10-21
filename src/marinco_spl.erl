@@ -1,3 +1,4 @@
+%%% coding: latin-1
 %%%---- BEGIN COPYRIGHT -------------------------------------------------------
 %%%
 %%% Copyright (C) 2007 - 2015, Rogvall Invest AB, <tony@rogvall.se>
@@ -15,6 +16,7 @@
 %%%
 %%%---- END COPYRIGHT ---------------------------------------------------------
 %%% @author Tony Rogvall <tony@rogvall.se>
+%%% @author Marina Westman Lönne <malotte@malotte.net>
 %%% @copyright (C) 2015, Tony Rogvall
 %%% @doc
 %%%    Marinco search light controller
@@ -24,8 +26,18 @@
 -module(marinco_spl).
 
 -export([start/0]).
+%% button api
+-export([press/1, release/1]).
 
 start() ->
     application:start(lager),
     application:start(uart),
     application:start(marinco_spl).
+
+
+press(Key) when is_atom(Key) ->
+    marinco_spl_srv:press(Key).
+
+release(Key) when is_atom(Key) ->
+    marinco_spl_srv:release(Key).
+
