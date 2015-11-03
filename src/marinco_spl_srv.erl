@@ -54,7 +54,7 @@
 
 -record(s, {
 	  uart,            %% serial line port id
-	  device,          %% device name
+	  device,          %% device name | simulated | none
 	  baud_rate,       %% baud rate to uart
 	  retry_interval,  %% Timeout for open retry
 	  retry_timer,     %% Timer reference for retry
@@ -246,6 +246,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 send_code(Key, #s { device = simulated }) ->
     lager:info("sending ~w.",[Key]);
+send_code(_Key, #s { device = none }) ->
+    ok;
 send_code(Key, #s { uart = U }) when U =/= undefined ->
     case Key of
 	right -> uart:send(U, ?RIGHT);
@@ -265,6 +267,9 @@ handle_input(Buffer, S) ->
 
 open(S0=#s {device = simulated }) ->
     lager:debug("marinco_spl: simulated"),
+    {ok, S0};
+open(S0=#s {device = none }) ->
+    lager:debug("marinco_spl: off"),
     {ok, S0};
 open(S0=#s {device = DeviceName, baud_rate = Baud }) ->
     UartOpts = [{mode,binary}, {baud, Baud}, {packet, 0},
