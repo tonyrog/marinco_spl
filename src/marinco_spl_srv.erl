@@ -42,15 +42,15 @@
 -define(DEFAULT_RETRY_INTERVAL, 2000).
 -define(DEFAULT_BAUDRATE, 9600).
 
--define(RIGHT,   $r).
--define(LEFT,    $l).
--define(UP,      $u).
--define(DOWN,    $d).
--define(SOS,     $x).
--define(ONOFF,   $1).
--define(SWEEP,   $w).
--define(SPEED,   $p).
--define(RELEASE, $z).
+-define(RIGHT,   "r").
+-define(LEFT,    "l").
+-define(UP,      "u").
+-define(DOWN,    "d").
+-define(SOS,     "x").
+-define(ONOFF,   "1").
+-define(SWEEP,   "w").
+-define(SPEED,   "p").
+-define(RELEASE, "z").
 
 -record(s, {
 	  uart,            %% serial line port id
