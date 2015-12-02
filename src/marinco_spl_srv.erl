@@ -30,10 +30,15 @@
 
 %% API
 -export([start_link/0,start_link/1]).
+-export([config_change/3]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+-export([init/1, 
+	 handle_call/3, 
+	 handle_cast/2, 
+	 handle_info/2,
+	 terminate/2, 
+	 code_change/3]).
 
 %% button api
 -export([press/1, release/1]).
@@ -88,6 +93,8 @@ resume() ->
 dump() ->
     gen_server:call(?SERVER, dump).
 
+config_change(Changed,New,Removed) ->
+    gen_server:call(?SERVER, {config_change,Changed,New,Removed}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -192,6 +199,10 @@ handle_call(resume, _From, S=#s {pause = false}) ->
 handle_call(dump, _From, S) ->
     lager:debug("dump.", []),
     {reply, {ok, S}, S};
+handle_call({config_change,_Changed,_New,_Removed},_From,S) ->
+    lager:debug("config_change changed=~p, new=~p, removed=~p\n",
+		[_Changed,_New,_Removed]),
+    {reply, ok, S};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
