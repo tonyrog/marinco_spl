@@ -38,6 +38,10 @@
 %% button api
 -export([press/1, release/1]).
 
+%% test api
+-export([pause/0, resume/0]).
+-export([dump/0]).
+
 -define(SERVER, ?MODULE).
 -define(DEFAULT_RETRY_INTERVAL, 2000).
 -define(DEFAULT_BAUDRATE, 9600).
@@ -58,6 +62,7 @@
 	  baud_rate,       %% baud rate to uart
 	  retry_interval,  %% Timeout for open retry
 	  retry_timer,     %% Timer reference for retry
+	  pause = false,   %% Pause input
 	  buf = <<>>
 	 }).
 
@@ -70,6 +75,19 @@ press(Key) when is_atom(Key) ->
 
 release(_Key) when is_atom(_Key) ->
     gen_server:cast(?SERVER, {send, release}).
+
+-spec pause() -> ok | {error, Error::atom()}.
+pause() ->
+    gen_server:call(?SERVER, pause).
+
+-spec resume() -> ok | {error, Error::atom()}.
+resume() ->
+    gen_server:call(?SERVER, resume).
+
+-spec dump() -> ok | {error, Error::atom()}.
+dump() ->
+    gen_server:call(?SERVER, dump).
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -104,6 +122,7 @@ init(Opts0) ->
     Opts = Opts0 ++ application:get_all_env(marinco_spl),
     RetryInterval = proplists:get_value(retry_interval,Opts,
 					?DEFAULT_RETRY_INTERVAL),
+    Pause = proplists:get_value(pause, Opts, false),
     Device = case proplists:get_value(device, Opts) of
 		 undefined -> os:getenv("MARINCO_SPL_DEVICE");
 		 D -> D
@@ -119,7 +138,8 @@ init(Opts0) ->
 	   end,
     S = #s{ device = Device,
 	    baud_rate = Baud,
-	    retry_interval = RetryInterval
+	    retry_interval = RetryInterval,
+	    pause = Pause
 	  },
     if Device =:= false; Device =:= "" ->
 	    lager:error("marinco_spl: missing device argument"),
@@ -150,6 +170,28 @@ init(Opts0) ->
 handle_call({send,Key}, _From, State) ->
     Reply = send_code(Key, State),
     {reply, Reply, State};
+handle_call(pause, _From, S=#s {pause = false, uart = Uart}) 
+  when Uart =/= undefined ->
+    lager:debug("pause.", []),
+    lager:debug("closing device ~s", [S#s.device]),
+    R = uart:close(S#s.uart),
+    lager:debug("closed ~p", [R]),
+    {reply, ok, S#s {pause = true}};
+handle_call(pause, _From, S) ->
+    lager:debug("pause when not active.", []),
+   {reply, ok, S#s {pause = true}};
+handle_call(resume, _From, S=#s {pause = true}) ->
+    lager:debug("resume.", []),
+    case open(S#s {pause = false}) of
+	{ok, S1} -> {reply, ok, S1};
+	Error -> {stop, Error}
+    end;
+handle_call(resume, _From, S=#s {pause = false}) ->
+    lager:debug("resume when not paused.", []),
+    {reply, ok, S};
+handle_call(dump, _From, S) ->
+    lager:debug("dump.", []),
+    {reply, {ok, S}, S};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -271,6 +313,8 @@ open(S0=#s {device = simulated }) ->
 open(S0=#s {device = none }) ->
     lager:debug("marinco_spl: off"),
     {ok, S0};
+open(S0=#s {pause = true}) ->
+    {ok, S0};
 open(S0=#s {device = DeviceName, baud_rate = Baud }) ->
     UartOpts = [{mode,binary}, {baud, Baud}, {packet, 0},
 		{csize, 8}, {stopb,1}, {parity,none}, {active, once}],
@@ -287,6 +331,8 @@ open(S0=#s {device = DeviceName, baud_rate = Baud }) ->
 	    Error
     end.
 
+reopen(S=#s {pause = true}) ->
+    {ok, S};
 reopen(S) ->
     if S#s.uart =/= undefined ->
 	    lager:debug("marinco_spl: closing device ~s", [S#s.device]),
