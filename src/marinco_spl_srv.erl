@@ -174,9 +174,13 @@ init(Opts0) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({send,Key}, _From, State) ->
+handle_call({send,Key}, _From, State=#s {uart = Uart})   
+  when Uart =/= undefined ->
     Reply = send_code(Key, State),
     {reply, Reply, State};
+handle_call({send,Key}, _From, State)->
+    lager:warning("Key ~p dropped", [Key]),
+    {reply, ok, State};
 handle_call(pause, _From, S=#s {pause = false, uart = Uart}) 
   when Uart =/= undefined ->
     lager:debug("pause.", []),
@@ -191,7 +195,7 @@ handle_call(resume, _From, S=#s {pause = true}) ->
     lager:debug("resume.", []),
     case open(S#s {pause = false}) of
 	{ok, S1} -> {reply, ok, S1};
-	Error -> {stop, Error}
+	Error -> {reply, Error, S}
     end;
 handle_call(resume, _From, S=#s {pause = false}) ->
     lager:debug("resume when not paused.", []),
@@ -343,7 +347,7 @@ open(S0=#s {device = DeviceName, baud_rate = Baud }) ->
     end.
 
 reopen(S=#s {pause = true}) ->
-    {ok, S};
+    S;
 reopen(S) ->
     if S#s.uart =/= undefined ->
 	    lager:debug("marinco_spl: closing device ~s", [S#s.device]),
