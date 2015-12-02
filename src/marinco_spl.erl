@@ -29,6 +29,11 @@
 %% button api
 -export([press/1, release/1]).
 
+%% test api
+-export([pause/0, resume/0]).
+
+-define(SERVER, marinco_spl_srv).
+
 start() ->
     application:start(lager),
     application:start(uart),
@@ -36,8 +41,13 @@ start() ->
 
 
 press(Key) when is_atom(Key) ->
-    marinco_spl_srv:press(Key).
+    ?SERVER:press(Key).
 
 release(Key) when is_atom(Key) ->
-    marinco_spl_srv:release(Key).
+    ?SERVER:release(Key).
 
+pause() ->
+    ?SERVER:pause().
+
+resume() ->
+    ?SERVER:resume().
