@@ -44,7 +44,7 @@
 -export([press/1, release/1]).
 
 %% test api
--export([pause/0, resume/0]).
+-export([pause/0, resume/0, ifstatus/0]).
 -export([dump/0]).
 
 -define(SERVER, ?MODULE).
@@ -88,6 +88,11 @@ pause() ->
 -spec resume() -> ok | {error, Error::atom()}.
 resume() ->
     gen_server:call(?SERVER, resume).
+
+-spec ifstatus() -> {ok, Status::atom()} | {error, Error::atom()}.
+ifstatus() ->
+    gen_server:call(?SERVER,ifstatus).
+
 
 -spec dump() -> ok | {error, Error::atom()}.
 dump() ->
@@ -200,6 +205,9 @@ handle_call(resume, _From, S=#s {pause = true}) ->
 handle_call(resume, _From, S=#s {pause = false}) ->
     lager:debug("resume when not paused.", []),
     {reply, ok, S};
+handle_call(ifstatus, _From, S=#s {pause = Pause}) ->
+    lager:debug("ifstatus.", []),
+    {reply, {ok, if Pause -> paused; true -> active end}, S};
 handle_call(dump, _From, S) ->
     lager:debug("dump.", []),
     {reply, {ok, S}, S};

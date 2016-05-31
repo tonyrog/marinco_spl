@@ -30,7 +30,7 @@
 -export([press/1, release/1]).
 
 %% test api
--export([pause/0, resume/0]).
+-export([pause/0, resume/0, ifstatus/0]).
 
 -define(SERVER, marinco_spl_srv).
 
@@ -46,8 +46,15 @@ press(Key) when is_atom(Key) ->
 release(Key) when is_atom(Key) ->
     ?SERVER:release(Key).
 
+-spec pause() -> ok | {error, Error::atom()}.
 pause() ->
     ?SERVER:pause().
 
+-spec resume() -> ok | {error, Error::atom()}.
 resume() ->
     ?SERVER:resume().
+
+-spec ifstatus() -> {ok, Status::atom()} | {error, Error::atom()}.
+ifstatus() ->
+    ?SERVER:ifstatus().
+
