@@ -313,6 +313,11 @@ send_code(Key, #s { device = simulated }) ->
     lager:info("sending ~w.",[Key]);
 send_code(_Key, #s { device = none }) ->
     ok;
+send_code(_Key, #s { pause = true }) ->
+    ok;
+send_code(_Key, #s { uart = undefined }) ->
+    lager:warning("uart not defined"),
+    ok;
 send_code(Key, #s { uart = U }) when U =/= undefined ->
     case Key of
 	right -> uart:send(U, ?RIGHT);
