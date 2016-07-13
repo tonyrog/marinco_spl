@@ -195,7 +195,7 @@ handle_call(pause, _From, S=#s {pause = false, uart = Uart})
     {reply, ok, S#s {pause = true}};
 handle_call(pause, _From, S) ->
     lager:debug("pause when not active.", []),
-   {reply, ok, S#s {pause = true}};
+    {reply, ok, S#s {pause = true}};
 handle_call(resume, _From, S=#s {pause = true}) ->
     lager:debug("resume.", []),
     case open(S#s {pause = false}) of
@@ -205,9 +205,18 @@ handle_call(resume, _From, S=#s {pause = true}) ->
 handle_call(resume, _From, S=#s {pause = false}) ->
     lager:debug("resume when not paused.", []),
     {reply, ok, S};
-handle_call(ifstatus, _From, S=#s {pause = Pause}) ->
+handle_call(ifstatus, _From, S=#s {pause = true}) ->
     lager:debug("ifstatus.", []),
-    {reply, {ok, if Pause -> paused; true -> active end}, S};
+    {reply, {ok, paused}, S};
+handle_call(ifstatus, _From, S=#s {device = simulated}) ->
+    lager:debug("ifstatus.", []),
+    {reply, {ok, simulated}, S};
+handle_call(ifstatus, _From, S=#s {uart = undefined}) ->
+    lager:debug("ifstatus.", []),
+    {reply, {ok, faulty}, S};
+handle_call(ifstatus, _From, S) ->
+    lager:debug("ifstatus.", []),
+    {reply, {ok, active}, S};
 handle_call(dump, _From, S) ->
     lager:debug("dump.", []),
     {reply, {ok, S}, S};
