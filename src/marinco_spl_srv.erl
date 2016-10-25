@@ -47,6 +47,7 @@
 -export([pause/0, resume/0, ifstatus/0]).
 -export([dump/0]).
 
+-define(SUBSYS, marinco).
 -define(SERVER, ?MODULE).
 -define(DEFAULT_RETRY_INTERVAL, 2000).
 -define(DEFAULT_BAUDRATE, 9600).
@@ -358,23 +359,27 @@ open(S0=#s {device = DeviceName, baud_rate = Baud }) ->
     case uart:open(DeviceName, UartOpts) of
 	{ok,Uart} ->
 	    lager:debug("marinco_spl:open: ~s@~w", [DeviceName,Baud]),
+	    elarm:clear('interface-down', ?SUBSYS),
 	    {ok, S0#s { uart = Uart }};
 	{error,E} when E =:= eaccess; E =:= enoent ->
 	    lager:debug("marinco_spl:open: ~s@~w  error ~w, will try again "
 		   "in ~p msecs.", [DeviceName,Baud,E,S0#s.retry_interval]),
+	    elarm:raise('interface-down', ?SUBSYS, [{device, DeviceName}]),
 	    {ok, reopen(S0)};
 	Error ->
 	    lager:error("marinco_spl: error ~w", [Error]),
+	    elarm:raise('interface-down', ?SUBSYS, [{device, DeviceName}]),
 	    Error
     end.
 
 reopen(S=#s {pause = true}) ->
     S;
-reopen(S) ->
+reopen(S=#s {device = DeviceName}) ->
     if S#s.uart =/= undefined ->
-	    lager:debug("marinco_spl: closing device ~s", [S#s.device]),
+	    lager:debug("marinco_spl: closing device ~s", [DeviceName]),
 	    R = uart:close(S#s.uart),
 	    lager:debug("marinco_spl: closed ~p", [R]),
+	    elarm:raise('interface-down', ?SUBSYS, [{device, DeviceName}]),
 	    R;
        true ->
 	    ok
